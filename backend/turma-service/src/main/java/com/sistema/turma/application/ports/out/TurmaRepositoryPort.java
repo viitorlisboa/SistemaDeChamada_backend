@@ -15,5 +15,7 @@ public interface TurmaRepositoryPort {
     boolean existePorId(Long id);
     boolean existePorProfessorId(Long professorId);
     boolean existePorDisciplinaId(Long disciplinaId);
+    /** Turma com o mesmo nome na mesma disciplina, ignorando a própria (idIgnorado null no cadastro). */
+    boolean existePorNomeEDisciplina(String nome, Long disciplinaId, Long idIgnorado);
     void incrementarAulasMinistradas(Long turmaId);
 }

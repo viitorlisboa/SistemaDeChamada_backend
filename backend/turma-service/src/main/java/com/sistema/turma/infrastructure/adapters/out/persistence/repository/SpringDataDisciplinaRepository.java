@@ -4,5 +4,7 @@ import com.sistema.turma.infrastructure.adapters.out.persistence.entity.Discipli
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SpringDataDisciplinaRepository extends JpaRepository<DisciplinaEntity, Long> {
+    boolean existsByCodigoIgnoreCase(String codigo);
+    boolean existsByCodigoIgnoreCaseAndIdNot(String codigo, Long id);
 
 }

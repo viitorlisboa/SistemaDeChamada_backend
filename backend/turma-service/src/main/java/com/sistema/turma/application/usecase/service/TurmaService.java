@@ -55,6 +55,8 @@ public class TurmaService implements GerenciarTurmaUseCase {
         exigirAdmin();
         turmaInfo.setProfessor(buscarProfessor(turmaInfo.getProfessor().getId()));
         turmaInfo.setDisciplina(buscarDisciplina(turmaInfo.getDisciplina().getId()));
+        turmaInfo.setNome(turmaInfo.getNome().trim());
+        validarNomeUnico(turmaInfo.getNome(), turmaInfo.getDisciplina().getId(), null);
         turmaInfo.setAulasMinistradas(0);
         return turmaRepositoryPort.salvar(turmaInfo);
     }
@@ -63,9 +65,13 @@ public class TurmaService implements GerenciarTurmaUseCase {
     public Turma atualizar(Long id, Turma turmaInfo) {
         exigirAdmin();
         Turma turmaExistente = buscarOuFalhar(id);
-        turmaExistente.setNome(turmaInfo.getNome());
+        String nome = turmaInfo.getNome().trim();
+        Disciplina disciplina = buscarDisciplina(turmaInfo.getDisciplina().getId());
+        validarNomeUnico(nome, disciplina.getId(), id);
+
+        turmaExistente.setNome(nome);
         turmaExistente.setProfessor(buscarProfessor(turmaInfo.getProfessor().getId()));
-        turmaExistente.setDisciplina(buscarDisciplina(turmaInfo.getDisciplina().getId()));
+        turmaExistente.setDisciplina(disciplina);
         return turmaRepositoryPort.salvar(turmaExistente);
     }
 
@@ -101,6 +107,13 @@ public class TurmaService implements GerenciarTurmaUseCase {
     private void exigirAdmin() {
         if (!usuarioLogadoPort.atual().isAdmin()) {
             throw new AcessoNegadoException("Somente ADMIN pode cadastrar, alterar ou excluir turmas.");
+        }
+    }
+
+    /** 409: duas turmas da mesma disciplina não podem ter o mesmo nome. */
+    private void validarNomeUnico(String nome, Long disciplinaId, Long idIgnorado) {
+        if (turmaRepositoryPort.existePorNomeEDisciplina(nome, disciplinaId, idIgnorado)) {
+            throw new RegraNegocioException("Já existe a turma \"" + nome + "\" nesta disciplina.");
         }
     }
 

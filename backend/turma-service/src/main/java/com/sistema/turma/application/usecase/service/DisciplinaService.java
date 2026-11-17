@@ -50,6 +50,8 @@ public class DisciplinaService implements GerenciarDisciplinaUseCase {
     @Override
     public Disciplina cadastrar(Disciplina disciplina) {
         exigirAdmin();
+        normalizar(disciplina);
+        validarCodigoUnico(disciplina.getCodigo(), null);
         return disciplinaRepositoryPort.salvar(disciplina);
     }
 
@@ -57,6 +59,8 @@ public class DisciplinaService implements GerenciarDisciplinaUseCase {
     public Disciplina atualizar(Long id, Disciplina disciplinaAtualizada) {
         exigirAdmin();
         Disciplina disciplinaExistente = buscarPorId(id);
+        normalizar(disciplinaAtualizada);
+        validarCodigoUnico(disciplinaAtualizada.getCodigo(), id);
 
         disciplinaExistente.setNome(disciplinaAtualizada.getNome());
         disciplinaExistente.setCodigo(disciplinaAtualizada.getCodigo());
@@ -77,5 +81,17 @@ public class DisciplinaService implements GerenciarDisciplinaUseCase {
         }
 
         disciplinaRepositoryPort.excluir(id);
+    }
+
+    private static void normalizar(Disciplina disciplina) {
+        disciplina.setNome(disciplina.getNome().trim());
+        disciplina.setCodigo(disciplina.getCodigo().trim().toUpperCase());
+    }
+
+    /** 409: dois cadastros não podem ter o mesmo código (também garantido por UNIQUE no banco). */
+    private void validarCodigoUnico(String codigo, Long idIgnorado) {
+        if (disciplinaRepositoryPort.existePorCodigo(codigo, idIgnorado)) {
+            throw new RegraNegocioException("Já existe uma disciplina com o código " + codigo + ".");
+        }
     }
 }

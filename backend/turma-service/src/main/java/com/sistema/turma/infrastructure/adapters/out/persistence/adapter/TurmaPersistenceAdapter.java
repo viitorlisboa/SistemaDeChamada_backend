@@ -79,6 +79,13 @@ public class TurmaPersistenceAdapter implements TurmaRepositoryPort {
     }
 
     @Override
+    public boolean existePorNomeEDisciplina(String nome, Long disciplinaId, Long idIgnorado) {
+        return idIgnorado == null
+                ? repository.existsByNomeIgnoreCaseAndDisciplinaId(nome, disciplinaId)
+                : repository.existsByNomeIgnoreCaseAndDisciplinaIdAndIdNot(nome, disciplinaId, idIgnorado);
+    }
+
+    @Override
     @Transactional
     public void incrementarAulasMinistradas(Long turmaId) {
         repository.incrementarAulasMinistradas(turmaId);

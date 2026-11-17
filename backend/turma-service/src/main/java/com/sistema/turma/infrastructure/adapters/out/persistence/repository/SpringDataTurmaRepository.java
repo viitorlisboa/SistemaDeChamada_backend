@@ -11,6 +11,8 @@ import java.util.List;
 public interface SpringDataTurmaRepository extends JpaRepository<TurmaEntity, Long> {
     boolean existsByProfessorId(Long professorId);
     boolean existsByDisciplinaId(Long disciplinaId);
+    boolean existsByNomeIgnoreCaseAndDisciplinaId(String nome, Long disciplinaId);
+    boolean existsByNomeIgnoreCaseAndDisciplinaIdAndIdNot(String nome, Long disciplinaId, Long id);
     List<TurmaEntity> findByProfessorId(Long professorId);
 
     // "turmas" é o nome da entidade (@Entity(name = "turmas"))

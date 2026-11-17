@@ -10,4 +10,6 @@ public interface DisciplinaRepositoryPort {
     Disciplina salvar(Disciplina disciplina);
     void excluir(Long id);
     boolean existePorId(Long id);
+    /** Código já usado por OUTRA disciplina (idIgnorado = a própria disciplina na edição; null no cadastro). */
+    boolean existePorCodigo(String codigo, Long idIgnorado);
 }

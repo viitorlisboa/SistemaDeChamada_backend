@@ -21,7 +21,9 @@ public class ChamadaEntity {
     @Column(nullable = false)
     private LocalDate data;
 
-    @Column(nullable = false)
+    // Coluna TIME no SQL Server. Com sendTimeAsDatetime=false (application.properties) o driver
+    // envia o LocalTime como TIME, e não como DATETIME, nas consultas e gravações.
+    @Column(name = "horario", nullable = false, columnDefinition = "TIME")
     private LocalTime horario;
 
     @Enumerated(EnumType.STRING)

@@ -73,6 +73,14 @@ public class ChamadaController {
         return ResponseEntity.ok(new PresencaResponseDTO(presencaAtualizada));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ChamadaResponseDTO> atualizar(@PathVariable Long id, @Valid @RequestBody AtualizarChamadaDTO dto) {
+        Chamada dados = new Chamada();
+        dados.setData(dto.getData());
+        dados.setHorario(dto.getHorario());
+        return ResponseEntity.ok(new ChamadaResponseDTO(gerenciarChamadaUseCase.atualizar(id, dados)));
+    }
+
     @PutMapping("/{id}/finalizar")
     public ResponseEntity<Void> finalizar(@PathVariable Long id) {
         gerenciarChamadaUseCase.finalizar(id);

@@ -46,6 +46,13 @@ public class DisciplinaPersistenceAdapter implements DisciplinaRepositoryPort {
         return repository.existsById(id);
     }
 
+    @Override
+    public boolean existePorCodigo(String codigo, Long idIgnorado) {
+        return idIgnorado == null
+                ? repository.existsByCodigoIgnoreCase(codigo)
+                : repository.existsByCodigoIgnoreCaseAndIdNot(codigo, idIgnorado);
+    }
+
     private Disciplina toDomain(DisciplinaEntity entity) {
         Disciplina disciplina = new Disciplina();
         disciplina.setId(entity.getId());

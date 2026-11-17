@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -48,6 +49,28 @@ public class ChamadaService implements GerenciarChamadaUseCase {
     public List<Chamada> listarPorTurma(Long turmaId) {
         acessoTurma.verificar(turmaId);
         return chamadaRepositoryPort.listarPorTurma(turmaId);
+    }
+
+    /**
+     * 404 se a chamada não existir; 403 se não for da turma do professor;
+     * 409 se já estiver finalizada ou se a turma já tiver outra chamada na nova data e horário.
+     */
+    @Override
+    @Transactional
+    public Chamada atualizar(Long id, Chamada dados) {
+        Chamada chamada = buscarPorId(id);
+        if (chamada.getStatus() == StatusChamada.FINALIZADA) {
+            throw new RegraNegocioException("Não é possível alterar uma chamada finalizada.");
+        }
+        boolean mudou = !Objects.equals(chamada.getData(), dados.getData())
+                || !Objects.equals(chamada.getHorario(), dados.getHorario());
+        if (mudou && chamadaRepositoryPort.existe(chamada.getTurmaId(), dados.getData(), dados.getHorario())) {
+            throw new RegraNegocioException("Já existe chamada para a turma " + chamada.getTurmaId()
+                    + " em " + dados.getData() + " às " + dados.getHorario() + ".");
+        }
+        chamada.setData(dados.getData());
+        chamada.setHorario(dados.getHorario());
+        return chamadaRepositoryPort.salvar(chamada);
     }
 
     /**
