@@ -15,6 +15,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,8 @@ import org.springframework.stereotype.Component;
  *   da subscription (padrão 10), move para a Dead-Letter Queue. Nada se perde em silêncio.
  * - JSON inválido -> vai direto para a Dead-Letter Queue (não adianta tentar de novo).
  * Desligado com AZURE_SERVICEBUS_ENABLED=false (ex.: rodar localmente sem Service Bus).
+ * Inicialização resiliente: sem connection string, ou se a conexão falhar na subida, registra o erro
+ * no log e o serviço continua no ar (as mensagens esperam na subscription).
  */
 @Component
 @Slf4j
@@ -39,7 +42,7 @@ public class AzureServiceBusListenerAdapter {
     @Value("${azure.servicebus.subscription-name:aluno-service-sub}")
     private String subscriptionName;
 
-    private final ServiceBusClientBuilder clientBuilder;
+    private final ObjectProvider<ServiceBusClientBuilder> clientBuilderProvider;
     private final ProcessarChamadaFinalizadaUseCase processarChamadaFinalizadaUseCase;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
@@ -50,17 +53,29 @@ public class AzureServiceBusListenerAdapter {
 
     @PostConstruct
     public void iniciarConsumer() {
-        this.processorClient = clientBuilder.processor()
-                .topicName(topicName)
-                .subscriptionName(subscriptionName)
-                .disableAutoComplete()
-                .maxConcurrentCalls(1)
-                .processMessage(this::processarMensagem)
-                .processError(this::processarErro)
-                .buildProcessorClient();
+        ServiceBusClientBuilder clientBuilder = clientBuilderProvider.getIfAvailable();
+        if (clientBuilder == null) {
+            log.warn("Consumer do Azure Service Bus NÃO iniciado (sem connection string válida). "
+                    + "O serviço segue no ar; os eventos ficam na subscription '{}'.", subscriptionName);
+            return;
+        }
+        try {
+            this.processorClient = clientBuilder.processor()
+                    .topicName(topicName)
+                    .subscriptionName(subscriptionName)
+                    .disableAutoComplete()
+                    .maxConcurrentCalls(1)
+                    .processMessage(this::processarMensagem)
+                    .processError(this::processarErro)
+                    .buildProcessorClient();
 
-        this.processorClient.start();
-        log.info("Consumer do Azure Service Bus ativado [Tópico: {}, Subscription: {}]", topicName, subscriptionName);
+            this.processorClient.start();
+            log.info("Consumer do Azure Service Bus ativado [Tópico: {}, Subscription: {}]", topicName, subscriptionName);
+        } catch (RuntimeException e) {
+            log.error("Falha ao iniciar o consumer do Azure Service Bus [Tópico: {}, Subscription: {}]. "
+                    + "O serviço segue no ar sem consumir eventos.", topicName, subscriptionName, e);
+            fecharSilenciosamente();
+        }
     }
 
     void processarMensagem(ServiceBusReceivedMessageContext context) {
@@ -98,8 +113,19 @@ public class AzureServiceBusListenerAdapter {
     @PreDestroy
     public void pararConsumer() {
         if (processorClient != null) {
-            processorClient.close();
+            fecharSilenciosamente();
             log.info("Consumer do Azure Service Bus desconectado.");
+        }
+    }
+
+    private void fecharSilenciosamente() {
+        if (processorClient == null) return;
+        try {
+            processorClient.close();
+        } catch (RuntimeException e) {
+            log.warn("Erro ao fechar o consumer do Azure Service Bus: {}", e.getMessage());
+        } finally {
+            processorClient = null;
         }
     }
 }

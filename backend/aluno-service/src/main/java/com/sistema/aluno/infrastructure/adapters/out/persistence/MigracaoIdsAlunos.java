@@ -19,6 +19,8 @@ import java.util.List;
  * Migração única (2.1): alunos antigos foram gravados com _id ObjectId (texto).
  * Na subida, cada um recebe um id Long da sequência e o documento antigo é removido.
  * Depois que não houver mais nenhum ObjectId, não faz nada.
+ * Se o Cosmos DB falhar nesta etapa (rede, firewall, credencial), registra o erro e NÃO derruba a subida:
+ * um ApplicationRunner com exceção encerraria o processo e o App Service responderia 502.
  */
 @Slf4j
 @Component
@@ -30,6 +32,15 @@ public class MigracaoIdsAlunos implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        try {
+            migrar();
+        } catch (RuntimeException e) {
+            log.error("Não foi possível verificar/migrar os ids dos alunos no Cosmos DB na subida. "
+                    + "O serviço segue no ar; confira SPRING_DATA_MONGODB_URI e o firewall do Cosmos DB.", e);
+        }
+    }
+
+    private void migrar() {
         MongoCollection<Document> alunos = mongoTemplate.getCollection("alunos");
 
         Document maior = alunos.find(Filters.type("_id", BsonType.INT64)).sort(Sorts.descending("_id")).limit(1).first();
